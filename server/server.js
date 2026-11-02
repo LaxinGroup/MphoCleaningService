@@ -9,7 +9,7 @@ app.use(cors());
 app.use(express.json()); // Parses incoming JSON requests
 
 // Sample API Route
-app.get('/api/health', (req, res) => {
+app.get('/', (req, res) => {
     res.json({ status: 'success', message: 'Server is running perfectly' });
 });
 
