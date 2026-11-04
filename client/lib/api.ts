@@ -1,5 +1,14 @@
 import type { ApiResponse, AvailabilityResult, ServicesPayload } from "./types";
 
+const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+
+function endpoint(path: string): string {
+  if (apiBase) {
+    return `${apiBase}${path}`;
+  }
+  return path;
+}
+
 async function readJson<T>(response: Response): Promise<ApiResponse<T>> {
   const body = (await response.json()) as ApiResponse<T>;
   if (!response.ok || !body.success || body.data === null) {
@@ -9,7 +18,7 @@ async function readJson<T>(response: Response): Promise<ApiResponse<T>> {
 }
 
 export async function fetchServices(): Promise<ServicesPayload> {
-  const response = await fetch("/api/services", { cache: "no-store" });
+  const response = await fetch(endpoint("/api/services"), { cache: "no-store" });
   const body = await readJson<ServicesPayload>(response);
   return body.data as ServicesPayload;
 }
@@ -17,7 +26,7 @@ export async function fetchServices(): Promise<ServicesPayload> {
 export async function checkAvailability(
   date: string,
 ): Promise<AvailabilityResult> {
-  const response = await fetch("/api/check-availability", {
+  const response = await fetch(endpoint("/api/check-availability"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ date }),
@@ -36,7 +45,7 @@ export async function createBooking(payload: {
   address?: string;
   notes?: string;
 }): Promise<void> {
-  const response = await fetch("/api/book", {
+  const response = await fetch(endpoint("/api/book"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
