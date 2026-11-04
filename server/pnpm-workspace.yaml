@@ -1,0 +1,6 @@
+allowBuilds:
+  esbuild: true
+  scripts: true
+permissions:
+  scripts:
+    skills: true
