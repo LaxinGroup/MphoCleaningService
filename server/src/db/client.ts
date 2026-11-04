@@ -1,5 +1,8 @@
 import { neon } from "@neondatabase/serverless";
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { CATALOG } from "../data/catalog.ts";
 import { env } from "../config/env.ts";
 import type {
@@ -157,15 +160,60 @@ function memoryDb(state: MemoryState): Database {
   };
 }
 
+let seedPromise: Promise<void> | null = null;
+
+async function ensureNeonSeeded(sql: Sql): Promise<void> {
+  if (seedPromise) return seedPromise;
+  seedPromise = (async () => {
+    try {
+      const here = path.dirname(fileURLToPath(import.meta.url));
+      const schema = await readFile(path.join(here, "schema.sql"), "utf8");
+      const statements = schema
+        .split(";")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+      for (const statement of statements) {
+        await sql.query(statement);
+      }
+      console.log("[mupho] Auto-seeded Neon database tables and pricing catalogue.");
+    } catch (error) {
+      console.error("[mupho] Failed to auto-seed Neon schema:", error);
+    }
+  })();
+  return seedPromise;
+}
+
 function neonDb(sql: Sql): Database {
   return {
     mode: "neon",
     async listCategories() {
-      const categories = (await sql`
-        SELECT id, slug, name, tagline, accent, sort_order
-        FROM service_categories
-        ORDER BY sort_order ASC
-      `) as Record<string, unknown>[];
+      let categories: Record<string, unknown>[] = [];
+      try {
+        categories = (await sql`
+          SELECT id, slug, name, tagline, accent, sort_order
+          FROM service_categories
+          ORDER BY sort_order ASC
+        `) as Record<string, unknown>[];
+      } catch (err: unknown) {
+        console.warn("[mupho] service_categories query failed, auto-initializing schema in Neon...");
+        await ensureNeonSeeded(sql);
+        categories = (await sql`
+          SELECT id, slug, name, tagline, accent, sort_order
+          FROM service_categories
+          ORDER BY sort_order ASC
+        `) as Record<string, unknown>[];
+      }
+
+      if (categories.length === 0) {
+        console.log("[mupho] Neon service_categories table is empty, auto-populating initial catalogue...");
+        await ensureNeonSeeded(sql);
+        categories = (await sql`
+          SELECT id, slug, name, tagline, accent, sort_order
+          FROM service_categories
+          ORDER BY sort_order ASC
+        `) as Record<string, unknown>[];
+      }
 
       const services = (await sql`
         SELECT id, category_id, name, description, price_label, price_from_cents, sort_order
