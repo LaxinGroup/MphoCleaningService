@@ -37,5 +37,10 @@
     "@types/express-serve-static-core": "^5.1.3",
     "@types/node": "^26.6.6",
     "typescript": "^7.0.2"
+  },
+  "pnpm": {
+    "allowedBuildScripts": [
+      "esbuild"
+    ]
   }
 }
