@@ -28,9 +28,9 @@ export function ServiceList() {
   }
 
   return (
-    <section id="prices" className="bg-mupho-blue py-[var(--section)] text-white">
+    <section id="prices" className="bg-mupho-blue py-(--section) text-white">
       <div className="wrap page-grid items-start gap-y-10">
-        <div className="col-span-12 md:col-span-4 sticky top-6">
+        <div className="col-span-12 md:col-span-4 md:sticky md:top-6">
           <p className="font-script text-2xl md:text-3xl text-mupho-yellow">
             Our Services & Price List
           </p>
