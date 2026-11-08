@@ -1,9 +1,8 @@
-import { SiteNav } from "./SiteNav";
 
 export function Hero() {
   return (
     <section className="relative min-h-[100svh] bg-mupho-blue text-white flex flex-col justify-between">
-      <SiteNav />
+      
 
       {/* Main Title Banner */}
       <div className="relative pt-[22vh] md:pt-[18vh] px-[var(--margin)]">
