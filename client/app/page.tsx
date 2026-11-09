@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { io } from "next/cache";
 import { BookingCoupon } from "@/components/BookingCoupon";
 import { ContactStrip } from "@/components/ContactStrip";
 import { CtaBand } from "@/components/CtaBand";
@@ -9,6 +11,18 @@ import { ServiceList } from "@/components/ServiceList";
 import { SiteFooter } from "@/components/SiteFooter";
 import { StreetPhoto } from "@/components/StreetPhoto";
 
+async function BookingForm() {
+  await io();
+  const initialDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Johannesburg",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+
+  return <BookingCoupon initialDate={initialDate} />;
+}
+
 export default function Home() {
   return (
     <>
@@ -19,7 +33,9 @@ export default function Home() {
         <ServiceList />
         <HowItWorks />
         <LaundryStill />
-        <BookingCoupon />
+        <Suspense fallback={null}>
+          <BookingForm />
+        </Suspense>
         <ContactStrip />
         <CtaBand />
       </div>

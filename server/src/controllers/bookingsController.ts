@@ -12,7 +12,14 @@ import {
 } from "../services/calendar.ts";
 
 const bodySchema = z.object({
-  serviceId: z.number().int().positive(),
+  serviceId: z.number().int().positive().optional(),
+  serviceIds: z
+    .array(z.number().int().positive())
+    .min(1)
+    .refine((serviceIds) => new Set(serviceIds).size === serviceIds.length, {
+      message: "A service can only be selected once.",
+    })
+    .optional(),
   date: z.string().refine(isIsoDate, "date must be YYYY-MM-DD in SAST"),
   slotId: z.enum(["morning", "midday", "afternoon"]),
   customerName: z.string().trim().min(2).max(80),
@@ -20,6 +27,18 @@ const bodySchema = z.object({
   customerPhone: z.string().trim().min(10).max(20),
   address: z.string().trim().max(200).optional(),
   notes: z.string().trim().max(500).optional(),
+}).transform((payload, context) => {
+  const serviceIds = payload.serviceIds ?? (
+    payload.serviceId === undefined ? [] : [payload.serviceId]
+  );
+  if (serviceIds.length === 0) {
+    context.addIssue({
+      code: "custom",
+      message: "Select at least one service.",
+      path: ["serviceIds"],
+    });
+  }
+  return { ...payload, serviceIds };
 });
 
 export async function createBooking(
@@ -33,11 +52,14 @@ export async function createBooking(
   }
 
   const payload = parsed.data;
-  const service = await db.getService(payload.serviceId);
-  if (!service) {
+  const selectedServices = await Promise.all(
+    payload.serviceIds.map((serviceId) => db.getService(serviceId)),
+  );
+  if (selectedServices.some((service) => service === null)) {
     sendFail(res, 404, "That service is not on the list.");
     return;
   }
+  const services = selectedServices.filter((service) => service !== null);
 
   let window: { start: Date; end: Date };
   try {
@@ -73,8 +95,9 @@ export async function createBooking(
     const whatsappDigits = payload.customerPhone
       .replace(/\D/g, "")
       .replace(/^0/, "27");
+    const serviceSummary = services.map((service) => service.name).join(", ");
     googleEventId = await insertCalendarEvent({
-      summary: `${payload.customerName} — ${service.name} (${slot?.label ?? payload.slotId})`,
+      summary: `${payload.customerName} — ${serviceSummary} (${slot?.label ?? payload.slotId})`,
       description: [
         `Customer: ${payload.customerName}`,
         `Date: ${payload.date}`,
@@ -82,7 +105,9 @@ export async function createBooking(
         `Cell: ${payload.customerPhone}`,
         `WhatsApp: ${payload.customerPhone}  →  https://wa.me/${whatsappDigits}`,
         `Email: ${payload.customerEmail}`,
-        `Service: ${service.name} (${service.priceLabel})`,
+        ...services.map(
+          (service) => `Service: ${service.name} (${service.priceLabel})`,
+        ),
         `Address: ${payload.address ?? "Not provided"}`,
         payload.notes ? `Notes: ${payload.notes}` : null,
         "Payment: cash / invoice / on delivery — no card checkout.",
@@ -99,7 +124,8 @@ export async function createBooking(
   try {
     const inserted = await db.insertBookingIfUnderCap(
       {
-        serviceId: payload.serviceId,
+        serviceId: payload.serviceIds[0],
+        serviceIds: payload.serviceIds,
         customerName: payload.customerName,
         customerEmail: payload.customerEmail,
         customerPhone: payload.customerPhone,

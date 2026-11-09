@@ -16,6 +16,7 @@ type Sql = ReturnType<typeof neon>;
 
 export type NewBooking = {
   serviceId: number;
+  serviceIds: number[];
   customerName: string;
   customerEmail: string;
   customerPhone: string;
@@ -59,9 +60,13 @@ function seedMemory(): MemoryState {
 }
 
 function mapBooking(row: Record<string, unknown>): BookingRecord {
+  const serviceId = Number(row.service_id);
   return {
     id: String(row.id),
-    serviceId: Number(row.service_id),
+    serviceId,
+    serviceIds: Array.isArray(row.service_ids)
+      ? row.service_ids.map(Number)
+      : [serviceId],
     customerName: String(row.customer_name),
     customerEmail: String(row.customer_email),
     customerPhone: String(row.customer_phone),
@@ -132,6 +137,7 @@ function memoryDb(state: MemoryState): Database {
       const record: BookingRecord = {
         id: randomUUID(),
         serviceId: input.serviceId,
+        serviceIds: input.serviceIds,
         customerName: input.customerName,
         customerEmail: input.customerEmail,
         customerPhone: input.customerPhone,
@@ -161,6 +167,7 @@ function memoryDb(state: MemoryState): Database {
 }
 
 let seedPromise: Promise<void> | null = null;
+let bookingServicesMigration: Promise<void> | null = null;
 
 async function ensureNeonSeeded(sql: Sql): Promise<void> {
   if (seedPromise) return seedPromise;
@@ -182,6 +189,22 @@ async function ensureNeonSeeded(sql: Sql): Promise<void> {
     }
   })();
   return seedPromise;
+}
+
+async function ensureBookingServicesColumn(sql: Sql): Promise<void> {
+  if (bookingServicesMigration) return bookingServicesMigration;
+  bookingServicesMigration = (async () => {
+    await sql`
+      ALTER TABLE bookings
+      ADD COLUMN IF NOT EXISTS service_ids JSONB NOT NULL DEFAULT '[]'::jsonb
+    `;
+    await sql`
+      UPDATE bookings
+      SET service_ids = jsonb_build_array(service_id)
+      WHERE service_ids = '[]'::jsonb
+    `;
+  })();
+  return bookingServicesMigration;
 }
 
 function neonDb(sql: Sql): Database {
@@ -291,14 +314,16 @@ function neonDb(sql: Sql): Database {
     },
     async insertBookingIfUnderCap(input, cap) {
       try {
+        await ensureBookingServicesColumn(sql);
         const rows = (await sql`
           INSERT INTO bookings (
-            service_id, customer_name, customer_email, customer_phone,
+            service_id, service_ids, customer_name, customer_email, customer_phone,
             address, notes, booking_date, slot_id, slot_start, slot_end,
             status, google_event_id
           )
           SELECT
             ${input.serviceId},
+            ${JSON.stringify(input.serviceIds)}::jsonb,
             ${input.customerName},
             ${input.customerEmail},
             ${input.customerPhone},
