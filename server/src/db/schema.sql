@@ -30,6 +30,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_services_category_name
 CREATE TABLE IF NOT EXISTS bookings (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   service_id       INTEGER NOT NULL REFERENCES services(id),
+  service_ids      JSONB NOT NULL DEFAULT '[]'::jsonb,
   customer_name    TEXT NOT NULL,
   customer_email   TEXT NOT NULL,
   customer_phone   TEXT NOT NULL,
@@ -46,6 +47,13 @@ CREATE TABLE IF NOT EXISTS bookings (
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (booking_date, slot_id)
 );
+
+ALTER TABLE bookings
+  ADD COLUMN IF NOT EXISTS service_ids JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+UPDATE bookings
+SET service_ids = jsonb_build_array(service_id)
+WHERE service_ids = '[]'::jsonb;
 
 CREATE INDEX IF NOT EXISTS idx_bookings_date_status
   ON bookings (booking_date, status);
