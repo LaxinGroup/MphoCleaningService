@@ -4,7 +4,7 @@ import { calendarConfigured, env } from "../config/env.ts";
 import { DAILY_BOOKING_CAP } from "../data/slots.ts";
 import { db } from "../db/client.ts";
 import { sendFail, sendOk } from "../lib/http.ts";
-import { isIsoDate } from "../lib/sast.ts";
+import { findSlot, isIsoDate } from "../lib/sast.ts";
 import { assertSlotOpen } from "../services/availability.ts";
 import {
   deleteCalendarEvent,
@@ -62,13 +62,27 @@ export async function createBooking(
 
   // Calendar write first so a failed Neon insert can delete the event.
   let googleEventId: string | null = null;
+  if (!calendarConfigured) {
+    console.warn(
+      "[mupho:calendar] GOOGLE_CLIENT_EMAIL / GOOGLE_PRIVATE_KEY missing — " +
+        "booking saved to Neon only (dev mode). Set NODE_ENV=production in prod.",
+    );
+  }
   if (calendarConfigured) {
+    const slot = findSlot(payload.slotId);
+    const whatsappDigits = payload.customerPhone
+      .replace(/\D/g, "")
+      .replace(/^0/, "27");
     googleEventId = await insertCalendarEvent({
-      summary: `MUPHO: ${service.name} — ${payload.customerName}`,
+      summary: `${payload.customerName} — ${service.name} (${slot?.label ?? payload.slotId})`,
       description: [
-        `Service: ${service.name} (${service.priceLabel})`,
         `Customer: ${payload.customerName}`,
-        `Phone: ${payload.customerPhone}`,
+        `Date: ${payload.date}`,
+        `Time window: ${slot?.label ?? payload.slotId} (SAST)`,
+        `Cell: ${payload.customerPhone}`,
+        `WhatsApp: ${payload.customerPhone}  →  https://wa.me/${whatsappDigits}`,
+        `Email: ${payload.customerEmail}`,
+        `Service: ${service.name} (${service.priceLabel})`,
         `Address: ${payload.address ?? "Not provided"}`,
         payload.notes ? `Notes: ${payload.notes}` : null,
         "Payment: cash / invoice / on delivery — no card checkout.",
