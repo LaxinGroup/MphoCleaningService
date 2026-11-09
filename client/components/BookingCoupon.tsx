@@ -13,9 +13,12 @@ import type {
 } from "@/lib/types";
 
 function todayIso(): string {
-  const now = new Date();
-  const sast = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-  return sast.toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Johannesburg",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 const REASON_COPY: Record<AvailabilityResult["slots"][number]["reason"], string> = {
@@ -26,14 +29,15 @@ const REASON_COPY: Record<AvailabilityResult["slots"][number]["reason"], string>
   past: "Passed",
 };
 
-export function BookingCoupon() {
+export function BookingCoupon({ initialDate }: { initialDate: string }) {
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState(initialDate);
+  const [today, setToday] = useState(initialDate);
   const [availability, setAvailability] = useState<AvailabilityResult | null>(
     null,
   );
   const [slotId, setSlotId] = useState<SlotId | "">("");
-  const [serviceId, setServiceId] = useState<number | "">("");
+  const [serviceIds, setServiceIds] = useState<number[]>([]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -48,15 +52,11 @@ export function BookingCoupon() {
   );
 
   useEffect(() => {
-    setDate(todayIso());
-  }, []);
-
-  useEffect(() => {
     fetchServices()
       .then((payload) => {
         setCategories(payload.categories);
         const first = payload.categories[0]?.services[0];
-        if (first) setServiceId(first.id);
+        if (first) setServiceIds([first.id]);
       })
       .catch(() => {
         setMessage("Could not load services from the Express server.");
@@ -69,7 +69,7 @@ export function BookingCoupon() {
     function handleSelectService(event: Event) {
       const customEvent = event as CustomEvent<{ serviceId: number }>;
       if (customEvent.detail?.serviceId) {
-        setServiceId(customEvent.detail.serviceId);
+        setServiceIds([customEvent.detail.serviceId]);
       }
     }
     window.addEventListener("mupho:select-service", handleSelectService);
@@ -81,7 +81,6 @@ export function BookingCoupon() {
   useEffect(() => {
     if (!date) return;
     let cancelled = false;
-    setSlotId("");
     checkAvailability(date)
       .then((result) => {
         if (!cancelled) setAvailability(result);
@@ -102,7 +101,7 @@ export function BookingCoupon() {
   const canSubmit =
     !capReached &&
     Boolean(slotId) &&
-    Boolean(serviceId) &&
+    serviceIds.length > 0 &&
     Boolean(date) &&
     name.trim().length > 1 &&
     email.includes("@") &&
@@ -111,12 +110,12 @@ export function BookingCoupon() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canSubmit || typeof serviceId !== "number" || slotId === "" || !date) return;
+    if (!canSubmit || serviceIds.length === 0 || slotId === "" || !date) return;
     setStatus("saving");
     setMessage("");
     try {
       await createBooking({
-        serviceId,
+        serviceIds,
         date,
         slotId,
         customerName: name,
@@ -136,7 +135,9 @@ export function BookingCoupon() {
     }
   }
 
-  const selectedService = services.find((s) => s.id === serviceId);
+  const selectedServices = services.filter((service) =>
+    serviceIds.includes(service.id),
+  );
 
   return (
     <section id="book" className="bg-[#eef3f8] py-[var(--section)]">
@@ -170,17 +171,23 @@ export function BookingCoupon() {
             </div>
 
             <div className="mt-8 pt-6 border-t border-mupho-blue/20 space-y-3">
-              {selectedService ? (
+              {selectedServices.length > 0 ? (
                 <div className="bg-white/80 p-3 rounded-none border-l-4 border-mupho-blue">
                   <p className="text-xs uppercase tracking-wider font-heading font-bold text-mupho-blue/70">
-                    Selected Service
+                    Selected Services
                   </p>
-                  <p className="font-heading font-extrabold text-lg text-mupho-blue">
-                    {selectedService.name}
-                  </p>
-                  <p className="text-sm font-bold text-mupho-blue">
-                    {selectedService.priceLabel}
-                  </p>
+                  <ul className="mt-1 space-y-1">
+                    {selectedServices.map((service) => (
+                      <li key={service.id} className="flex justify-between gap-3">
+                        <span className="font-heading font-extrabold text-sm text-mupho-blue">
+                          {service.name}
+                        </span>
+                        <span className="shrink-0 text-sm font-bold text-mupho-blue">
+                          {service.priceLabel}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ) : null}
 
@@ -194,28 +201,46 @@ export function BookingCoupon() {
 
           {/* Right panel: Booking form */}
           <form className="flex flex-col gap-3 bg-mupho-yellow p-6 md:p-10" onSubmit={onSubmit}>
-            <div>
-              <label className="block text-xs font-heading font-bold uppercase tracking-wider mb-1" htmlFor="service">
-                1. Select Service Package
-              </label>
-              <select
-                id="service"
-                required
-                value={serviceId}
-                onChange={(event) => setServiceId(Number(event.target.value))}
-                className="h-[52px] w-full bg-white px-4 text-base font-body border border-mupho-blue/20 focus:outline-none focus:ring-2 focus:ring-mupho-blue"
-              >
+            <fieldset>
+              <legend className="block text-xs font-heading font-bold uppercase tracking-wider mb-1">
+                1. Select Service Packages
+              </legend>
+              <div className="max-h-56 w-full overflow-y-auto border border-mupho-blue/20 bg-white px-4 py-2 focus-within:ring-2 focus-within:ring-mupho-blue">
                 {categories.map((category) => (
-                  <optgroup key={category.id} label={`${category.name} (${category.tagline})`}>
+                  <div key={category.id} className="py-1">
+                    <p className="font-heading text-xs font-bold uppercase text-mupho-blue/70">
+                      {category.name}
+                    </p>
                     {category.services.map((service) => (
-                      <option key={service.id} value={service.id}>
-                        {service.name} — {service.priceLabel}
-                      </option>
+                      <label
+                        key={service.id}
+                        htmlFor={`service-${service.id}`}
+                        className="flex cursor-pointer items-center gap-2 py-1.5 text-sm text-mupho-blue"
+                      >
+                        <input
+                          id={`service-${service.id}`}
+                          type="checkbox"
+                          checked={serviceIds.includes(service.id)}
+                          onChange={(event) => {
+                            setServiceIds((current) =>
+                              event.target.checked
+                                ? [...current, service.id]
+                                : current.filter((id) => id !== service.id),
+                            );
+                          }}
+                          className="size-4 accent-mupho-blue"
+                        />
+                        <span className="flex-1">{service.name}</span>
+                        <span className="shrink-0 font-bold">{service.priceLabel}</span>
+                      </label>
                     ))}
-                  </optgroup>
+                  </div>
                 ))}
-              </select>
-            </div>
+              </div>
+              <p className="mt-1 text-xs text-mupho-blue/80">
+                Select one or more services ({serviceIds.length} selected).
+              </p>
+            </fieldset>
 
             <div>
               <label className="block text-xs font-heading font-bold uppercase tracking-wider mb-1" htmlFor="date">
@@ -225,9 +250,13 @@ export function BookingCoupon() {
                 id="date"
                 type="date"
                 required
-                min={date || undefined}
+                min={today}
                 value={date}
-                onChange={(event) => setDate(event.target.value)}
+                onFocus={() => setToday(todayIso())}
+                onChange={(event) => {
+                  setSlotId("");
+                  setDate(event.target.value);
+                }}
                 className="h-[52px] w-full bg-white px-4 text-base font-body border border-mupho-blue/20 focus:outline-none focus:ring-2 focus:ring-mupho-blue"
               />
             </div>

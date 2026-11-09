@@ -74,6 +74,7 @@ export type AvailabilityResult = {
 export type BookingRecord = {
   id: string;
   serviceId: number;
+  serviceIds: number[];
   customerName: string;
   customerEmail: string;
   customerPhone: string;

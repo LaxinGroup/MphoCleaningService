@@ -36,7 +36,7 @@ export async function checkAvailability(
 }
 
 export async function createBooking(payload: {
-  serviceId: number;
+  serviceIds: number[];
   date: string;
   slotId: "morning" | "midday" | "afternoon";
   customerName: string;
