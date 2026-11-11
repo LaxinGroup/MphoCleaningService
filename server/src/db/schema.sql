@@ -64,17 +64,34 @@ CREATE INDEX IF NOT EXISTS idx_bookings_date_status
 INSERT INTO service_categories (slug, name, tagline, accent, sort_order)
 VALUES
   ('laundry', 'Laundry Services', 'Fresh. Clean. Neat.', 'laundry', 1),
-  ('home-cleaning', 'Home Cleaning Services', 'A cleaner home, a healthier you.', 'home', 2),
-  ('windows', 'Window Cleaning Services', 'Clear Views. Brighter Spaces.', 'windows', 3),
-  ('floors', 'Floor, Carpet & Upholstery', 'Fresh Floors. Revived Spaces.', 'floor', 4),
-  ('office', 'Office & Workspace Cleaning', 'Clean Workspaces. Better Productivity.', 'office', 5),
-  ('gardening', 'Gardening & Landscaping', 'Greener Spaces. Healthier Lives.', 'garden', 6),
-  ('additional', 'Additional Services', 'Let us do the dirty work!', 'extra', 7)
+  ('residential', 'Residential Cleaning', 'A cleaner home, a healthier you.', 'home', 2),
+  ('commercial', 'Commercial Cleaning', 'Clean Workspaces. Better Productivity.', 'office', 3),
+  ('additional', 'Additional Services', 'Let us do the dirty work!', 'extra', 4)
 ON CONFLICT (slug) DO UPDATE SET
   name = EXCLUDED.name,
   tagline = EXCLUDED.tagline,
   accent = EXCLUDED.accent,
   sort_order = EXCLUDED.sort_order;
+
+-- -------------------------------------------------------------
+-- Migration: fold the old 7 flyer categories into the 4 groups.
+-- Services are moved (not deleted) so their ids and past bookings stay intact.
+-- Safe to re-run: does nothing once the old categories are gone.
+-- -------------------------------------------------------------
+UPDATE services
+SET category_id = (SELECT id FROM service_categories WHERE slug = 'residential')
+WHERE category_id IN (SELECT id FROM service_categories WHERE slug IN ('home-cleaning', 'windows'));
+
+UPDATE services
+SET category_id = (SELECT id FROM service_categories WHERE slug = 'commercial')
+WHERE category_id IN (SELECT id FROM service_categories WHERE slug = 'office');
+
+UPDATE services
+SET category_id = (SELECT id FROM service_categories WHERE slug = 'additional')
+WHERE category_id IN (SELECT id FROM service_categories WHERE slug IN ('floors', 'gardening'));
+
+DELETE FROM service_categories
+WHERE slug IN ('home-cleaning', 'windows', 'office', 'floors', 'gardening');
 
 -- -------------------------------------------------------------
 -- Seed / Upsert Services & Live Prices
@@ -96,35 +113,29 @@ VALUES
   ((SELECT id FROM service_categories WHERE slug = 'laundry'), 'Bedding & Linen Wash — Queen Bed', 'Sheets, duvet covers and pillowcases.', 'R250', 25000, 11),
   ((SELECT id FROM service_categories WHERE slug = 'laundry'), 'Kids laundry incl. school uniform', 'Children’s clothing plus school uniform wash.', 'R300', 30000, 12),
 
-  -- 2. Home Cleaning Services
-  ((SELECT id FROM service_categories WHERE slug = 'home-cleaning'), 'Spring & Once-off Cleaning', 'Priced on size and number of bedrooms.', 'From R450', 45000, 1),
-  ((SELECT id FROM service_categories WHERE slug = 'home-cleaning'), 'Standard Cleaning', 'Priced on number of rooms and property size.', 'From R350', 35000, 2),
-  ((SELECT id FROM service_categories WHERE slug = 'home-cleaning'), 'Deep Cleaning — Standard', 'Priced on size, number of rooms and condition.', 'From R700', 70000, 3),
-  ((SELECT id FROM service_categories WHERE slug = 'home-cleaning'), 'Specialised Move-in / Move-out / End of tenancy', 'Detailed cleaning of all rooms, kitchen cabinets and bathroom.', 'From R1 700', 170000, 4),
+  -- 2. Residential Cleaning (Home + Windows)
+  ((SELECT id FROM service_categories WHERE slug = 'residential'), 'Spring & Once-off Cleaning', 'Priced on size and number of bedrooms.', 'From R450', 45000, 1),
+  ((SELECT id FROM service_categories WHERE slug = 'residential'), 'Standard Cleaning', 'Priced on number of rooms and property size.', 'From R350', 35000, 2),
+  ((SELECT id FROM service_categories WHERE slug = 'residential'), 'Deep Cleaning — Standard', 'Priced on size, number of rooms and condition.', 'From R700', 70000, 3),
+  ((SELECT id FROM service_categories WHERE slug = 'residential'), 'Specialised Move-in / Move-out / End of tenancy', 'Detailed cleaning of all rooms, kitchen cabinets and bathroom.', 'From R1 700', 170000, 4),
+  ((SELECT id FROM service_categories WHERE slug = 'residential'), 'Glass', 'Discount applies on 4 or more windows.', 'R30', 3000, 5),
+  ((SELECT id FROM service_categories WHERE slug = 'residential'), 'Aluminium frames', 'Discount applies on 5 or more frames.', 'From R50', 5000, 6),
 
-  -- 3. Window Cleaning Services
-  ((SELECT id FROM service_categories WHERE slug = 'windows'), 'Glass', 'Discount applies on 4 or more windows.', 'R30', 3000, 1),
-  ((SELECT id FROM service_categories WHERE slug = 'windows'), 'Aluminium frames', 'Discount applies on 5 or more frames.', 'From R50', 5000, 2),
+  -- 3. Commercial Cleaning (Office & Workspace)
+  ((SELECT id FROM service_categories WHERE slug = 'commercial'), 'Standard office clean', 'Office areas, desks, dusting, bins, general tidy.', 'From R800', 80000, 1),
+  ((SELECT id FROM service_categories WHERE slug = 'commercial'), 'Deep office clean', 'Vents, fixtures, carpets and high-touch areas.', 'From R1 200', 120000, 2),
 
-  -- 4. Floor, Carpet & Upholstery
-  ((SELECT id FROM service_categories WHERE slug = 'floors'), 'Carpet Cleaning', 'Quoted per square metre.', 'From R25 per m²', 2500, 1),
-  ((SELECT id FROM service_categories WHERE slug = 'floors'), 'Hard Floor Cleaning', 'Tile, vinyl, laminate — mopping and polish.', 'From R45 per m²', 4500, 2),
-  ((SELECT id FROM service_categories WHERE slug = 'floors'), 'Upholstery Cleaning', 'Sofas and chairs, per seat. Fabric care and stain removal.', 'From R300', 30000, 3),
-
-  -- 5. Office & Workspace Cleaning
-  ((SELECT id FROM service_categories WHERE slug = 'office'), 'Standard office clean', 'Office areas, desks, dusting, bins, general tidy.', 'From R800', 80000, 1),
-  ((SELECT id FROM service_categories WHERE slug = 'office'), 'Deep office clean', 'Vents, fixtures, carpets and high-touch areas.', 'From R1 200', 120000, 2),
-
-  -- 6. Gardening & Landscaping
-  ((SELECT id FROM service_categories WHERE slug = 'gardening'), 'Yard tidy', 'Lawn debris, rubbish removal, general yard tidy.', 'R100', 10000, 1),
-  ((SELECT id FROM service_categories WHERE slug = 'gardening'), 'Gardening', 'Weeding, pruning, planting and garden maintenance.', 'From R150', 15000, 2),
-
-  -- 7. Additional Services
+  -- 4. Additional Services (extras + Floor, Carpet & Upholstery + Gardening)
   ((SELECT id FROM service_categories WHERE slug = 'additional'), 'After Party', 'Post-event clean — bottles, décor, general cleanup.', 'From R400', 40000, 1),
   ((SELECT id FROM service_categories WHERE slug = 'additional'), 'After Funeral & Functions', 'Respectful deep clean after a funeral or function.', 'From R700', 70000, 2),
   ((SELECT id FROM service_categories WHERE slug = 'additional'), 'Deco Cleaning', 'Décor removal, display cleaning and space reset.', 'From R600', 60000, 3),
   ((SELECT id FROM service_categories WHERE slug = 'additional'), 'After Building', 'Post-construction — dust removal, debris, detailed clean.', 'From R800', 80000, 4),
-  ((SELECT id FROM service_categories WHERE slug = 'additional'), 'De-cluttering & Storage', 'Organising, sorting, packing, declutter and storage prep.', 'From R350', 35000, 5)
+  ((SELECT id FROM service_categories WHERE slug = 'additional'), 'De-cluttering & Storage', 'Organising, sorting, packing, declutter and storage prep.', 'From R350', 35000, 5),
+  ((SELECT id FROM service_categories WHERE slug = 'additional'), 'Carpet Cleaning', 'Quoted per square metre.', 'From R25 per m²', 2500, 6),
+  ((SELECT id FROM service_categories WHERE slug = 'additional'), 'Hard Floor Cleaning', 'Tile, vinyl, laminate — mopping and polish.', 'From R45 per m²', 4500, 7),
+  ((SELECT id FROM service_categories WHERE slug = 'additional'), 'Upholstery Cleaning', 'Sofas and chairs, per seat. Fabric care and stain removal.', 'From R300', 30000, 8),
+  ((SELECT id FROM service_categories WHERE slug = 'additional'), 'Yard tidy', 'Lawn debris, rubbish removal, general yard tidy.', 'R100', 10000, 9),
+  ((SELECT id FROM service_categories WHERE slug = 'additional'), 'Gardening', 'Weeding, pruning, planting and garden maintenance.', 'From R150', 15000, 10)
 
 ON CONFLICT (category_id, name) DO UPDATE SET
   description = EXCLUDED.description,

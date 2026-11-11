@@ -8,6 +8,17 @@ import type { ServiceCategory } from "@/lib/types";
 export function ServiceList() {
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // All groups start closed; each one opens independently.
+  const [openIds, setOpenIds] = useState<Set<number>>(new Set());
+
+  function toggleCategory(id: number) {
+    setOpenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   useEffect(() => {
     fetchServices()
@@ -76,20 +87,38 @@ export function ServiceList() {
             </div>
           ) : null}
 
-          <div className="flex flex-col gap-8" data-ui>
-            {categories.map((category) => (
-              <article key={category.id} className="overflow-hidden border border-white/10 shadow-lg">
-                <div
-                  className={`flex flex-wrap items-end justify-between gap-3 px-5 py-4 ${ACCENT_CLASS[category.accent]}`}
-                >
-                  <h3 className="font-heading text-xl font-black uppercase tracking-tight md:text-2xl">
-                    {category.name}
-                  </h3>
-                  <p className="font-script text-2xl leading-none">
-                    {category.tagline}
-                  </p>
-                </div>
-                <ul className="divide-y divide-mupho-blue/10">
+          <div className="flex flex-col gap-4" data-ui>
+            {categories.map((category) => {
+              const isOpen = openIds.has(category.id);
+              const panelId = `prices-${category.slug}`;
+              return (
+              <article key={category.id} className="overflow-hidden rounded-3xl border-2 border-white/70 shadow-lg">
+                <h3>
+                  <button
+                    type="button"
+                    onClick={() => toggleCategory(category.id)}
+                    aria-expanded={isOpen}
+                    aria-controls={panelId}
+                    className={`flex w-full items-center justify-between gap-4 px-6 py-5 md:px-8 md:py-6 text-left ${ACCENT_CLASS[category.accent]}`}
+                  >
+                    <span className="font-heading text-xl font-black uppercase tracking-tight md:text-2xl">
+                      {category.name}
+                    </span>
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className={`size-6 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </button>
+                </h3>
+                <ul id={panelId} hidden={!isOpen} className="divide-y divide-mupho-blue/10">
                   {category.services.map((service) => (
                     <li
                       key={service.id}
@@ -122,7 +151,8 @@ export function ServiceList() {
                   ))}
                 </ul>
               </article>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
