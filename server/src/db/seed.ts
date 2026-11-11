@@ -42,8 +42,7 @@ async function seed(): Promise<void> {
 
     const categoryId = rows[0].id;
 
-    await sql`DELETE FROM services WHERE category_id = ${categoryId}`;
-
+    // Upsert (never delete) so service ids referenced by bookings stay valid.
     for (const [sIndex, service] of category.services.entries()) {
       await sql`
         INSERT INTO services (
@@ -56,6 +55,11 @@ async function seed(): Promise<void> {
           ${service.priceFromCents},
           ${sIndex + 1}
         )
+        ON CONFLICT (category_id, name) DO UPDATE SET
+          description = EXCLUDED.description,
+          price_label = EXCLUDED.price_label,
+          price_from_cents = EXCLUDED.price_from_cents,
+          sort_order = EXCLUDED.sort_order
       `;
     }
   }

@@ -99,8 +99,8 @@ export const CATALOG: CatalogCategorySeed[] = [
     ],
   },
   {
-    slug: "home-cleaning",
-    name: "Home Cleaning Services",
+    slug: "residential",
+    name: "Residential Cleaning",
     tagline: "A cleaner home, a healthier you.",
     accent: "home",
     services: [
@@ -129,14 +129,6 @@ export const CATALOG: CatalogCategorySeed[] = [
         priceLabel: "From R1 700",
         priceFromCents: 170000,
       },
-    ],
-  },
-  {
-    slug: "windows",
-    name: "Window Cleaning Services",
-    tagline: "Clear Views. Brighter Spaces.",
-    accent: "windows",
-    services: [
       {
         name: "Glass",
         description: "Discount applies on 4 or more windows.",
@@ -152,34 +144,8 @@ export const CATALOG: CatalogCategorySeed[] = [
     ],
   },
   {
-    slug: "floors",
-    name: "Floor, Carpet & Upholstery",
-    tagline: "Fresh Floors. Revived Spaces.",
-    accent: "floor",
-    services: [
-      {
-        name: "Carpet Cleaning",
-        description: "Quoted per square metre.",
-        priceLabel: "From R25 per m²",
-        priceFromCents: 2500,
-      },
-      {
-        name: "Hard Floor Cleaning",
-        description: "Tile, vinyl, laminate — mopping and polish.",
-        priceLabel: "From R45 per m²",
-        priceFromCents: 4500,
-      },
-      {
-        name: "Upholstery Cleaning",
-        description: "Sofas and chairs, per seat. Fabric care and stain removal.",
-        priceLabel: "From R300",
-        priceFromCents: 30000,
-      },
-    ],
-  },
-  {
-    slug: "office",
-    name: "Office & Workspace Cleaning",
+    slug: "commercial",
+    name: "Commercial Cleaning",
     tagline: "Clean Workspaces. Better Productivity.",
     accent: "office",
     services: [
@@ -194,26 +160,6 @@ export const CATALOG: CatalogCategorySeed[] = [
         description: "Vents, fixtures, carpets and high-touch areas.",
         priceLabel: "From R1 200",
         priceFromCents: 120000,
-      },
-    ],
-  },
-  {
-    slug: "gardening",
-    name: "Gardening & Landscaping",
-    tagline: "Greener Spaces. Healthier Lives.",
-    accent: "garden",
-    services: [
-      {
-        name: "Yard tidy",
-        description: "Lawn debris, rubbish removal, general yard tidy.",
-        priceLabel: "R100",
-        priceFromCents: 10000,
-      },
-      {
-        name: "Gardening",
-        description: "Weeding, pruning, planting and garden maintenance.",
-        priceLabel: "From R150",
-        priceFromCents: 15000,
       },
     ],
   },
@@ -252,6 +198,36 @@ export const CATALOG: CatalogCategorySeed[] = [
         description: "Organising, sorting, packing, declutter and storage prep.",
         priceLabel: "From R350",
         priceFromCents: 35000,
+      },
+      {
+        name: "Carpet Cleaning",
+        description: "Quoted per square metre.",
+        priceLabel: "From R25 per m²",
+        priceFromCents: 2500,
+      },
+      {
+        name: "Hard Floor Cleaning",
+        description: "Tile, vinyl, laminate — mopping and polish.",
+        priceLabel: "From R45 per m²",
+        priceFromCents: 4500,
+      },
+      {
+        name: "Upholstery Cleaning",
+        description: "Sofas and chairs, per seat. Fabric care and stain removal.",
+        priceLabel: "From R300",
+        priceFromCents: 30000,
+      },
+      {
+        name: "Yard tidy",
+        description: "Lawn debris, rubbish removal, general yard tidy.",
+        priceLabel: "R100",
+        priceFromCents: 10000,
+      },
+      {
+        name: "Gardening",
+        description: "Weeding, pruning, planting and garden maintenance.",
+        priceLabel: "From R150",
+        priceFromCents: 15000,
       },
     ],
   },
